@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+<<<<<<< HEAD
       <module fileurl="file://$PROJECT_DIR$/B2P14-RA2411003011629.iml" filepath="$PROJECT_DIR$/B2P14-RA2411003011629.iml" />
+=======
+      <module fileurl="file://$PROJECT_DIR$/B2P14_RA2411003011629.iml" filepath="$PROJECT_DIR$/B2P14_RA2411003011629.iml" />
+>>>>>>> feature/UC2
     </modules>
   </component>
 </project>
