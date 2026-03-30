@@ -1,150 +1,135 @@
 import java.util.*;
 
-// Step 1: Reservation class
+
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
+
+
+class Room {
+    String type;
+    int available;
+
+    public Room(String type, int available) throws InvalidBookingException {
+        if (available < 0) {
+            throw new InvalidBookingException("Room availability cannot be negative");
+        }
+        this.type = type;
+        this.available = available;
+    }
+}
+
+
 class Reservation {
     String guestName;
     String roomType;
     int nights;
-    String allocatedRoomID; // Assigned during allocation
 
-    public Reservation(String guestName, String roomType, int nights) {
+    public Reservation(String guestName, String roomType, int nights) throws InvalidBookingException {
+        if (guestName == null || guestName.isBlank()) {
+            throw new InvalidBookingException("Guest name cannot be empty");
+        }
+        if (roomType == null || roomType.isBlank()) {
+            throw new InvalidBookingException("Room type cannot be empty");
+        }
+        if (nights <= 0) {
+            throw new InvalidBookingException("Number of nights must be greater than zero");
+        }
         this.guestName = guestName;
         this.roomType = roomType;
         this.nights = nights;
-        this.allocatedRoomID = null;
-    }
-
-    public void assignRoomID(String roomID) {
-        this.allocatedRoomID = roomID;
     }
 
     @Override
     public String toString() {
-        return "Guest: " + guestName +
-                ", Room Type: " + roomType +
-                ", Nights: " + nights +
-                (allocatedRoomID != null ? ", Room ID: " + allocatedRoomID : ", Room ID: Not Assigned");
+        return "Reservation [Guest: " + guestName + ", Room Type: " + roomType + ", Nights: " + nights + "]";
     }
 }
 
-// Step 2: Inventory Service
-class InventoryService {
-    private Map<String, Integer> roomAvailability = new HashMap<>();
-    private Map<String, Set<String>> allocatedRoomIDs = new HashMap<>();
 
-    public InventoryService() {
-        // Initial inventory
-        roomAvailability.put("Single", 5);
-        roomAvailability.put("Double", 3);
-        roomAvailability.put("Suite", 2);
-
-        // Initialize allocated room sets
-        allocatedRoomIDs.put("Single", new HashSet<>());
-        allocatedRoomIDs.put("Double", new HashSet<>());
-        allocatedRoomIDs.put("Suite", new HashSet<>());
-    }
-
-    // Check if room type is available
-    public boolean isAvailable(String roomType) {
-        return roomAvailability.getOrDefault(roomType, 0) > 0;
-    }
-
-    // Allocate a room ID and decrement inventory
-    public String allocateRoom(String roomType) {
-        if (!isAvailable(roomType)) return null;
-
-        // Generate unique room ID
-        String roomID;
-        do {
-            roomID = roomType.substring(0, 1).toUpperCase() + "-" + UUID.randomUUID().toString().substring(0, 6);
-        } while (allocatedRoomIDs.get(roomType).contains(roomID));
-
-        // Record allocation
-        allocatedRoomIDs.get(roomType).add(roomID);
-        roomAvailability.put(roomType, roomAvailability.get(roomType) - 1);
-
-        return roomID;
-    }
-
-    // Display current inventory
-    public void displayInventory() {
-        System.out.println("\n--- Current Room Inventory ---");
-        roomAvailability.forEach((type, count) -> System.out.println(type + ": " + count + " available"));
-    }
-}
-
-// Step 3: Booking Service
 class BookingService {
-    private InventoryService inventory;
+    private Map<String, Room> inventory;
 
-    public BookingService(InventoryService inventory) {
+    public BookingService(Map<String, Room> inventory) {
         this.inventory = inventory;
     }
 
-    public void confirmReservations(Queue<Reservation> bookingQueue) {
-        System.out.println("\n--- Confirming Reservations ---");
-        while (!bookingQueue.isEmpty()) {
-            Reservation reservation = bookingQueue.poll();
-            if (inventory.isAvailable(reservation.roomType)) {
-                String roomID = inventory.allocateRoom(reservation.roomType);
-                reservation.assignRoomID(roomID);
-                System.out.println("Reservation confirmed: " + reservation);
-            } else {
-                System.out.println("Sorry, no " + reservation.roomType + " rooms available for " + reservation.guestName);
-            }
+    public void validateAndBook(Reservation reservation) throws InvalidBookingException {
+        Room room = inventory.get(reservation.roomType);
+
+
+        if (room == null) {
+            throw new InvalidBookingException("Invalid room type: " + reservation.roomType);
         }
+        if (room.available <= 0) {
+            throw new InvalidBookingException("No available rooms of type: " + reservation.roomType);
+        }
+
+
+        room.available--;
+        System.out.println("Booking confirmed: " + reservation);
+    }
+
+    public void displayInventory() {
+        System.out.println("\nCurrent Room Inventory:");
+        inventory.forEach((type, room) -> System.out.println(type + " -> Available: " + room.available));
     }
 }
 
-// Step 4: Main Application
+
 public class BookMyStayApp {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        InventoryService inventory = new InventoryService();
-        BookingService bookingService = new BookingService(inventory);
 
-        Queue<Reservation> bookingQueue = new LinkedList<>();
-        System.out.println("Welcome to Book My Stay - Reservation Confirmation & Room Allocation");
+        try {
 
-        boolean continueInput = true;
-        while (continueInput) {
-            System.out.print("\nEnter guest name: ");
-            String guestName = sc.nextLine().trim();
+            Map<String, Room> inventory = new HashMap<>();
+            inventory.put("Single", new Room("Single", 2));
+            inventory.put("Double", new Room("Double", 1));
+            inventory.put("Suite", new Room("Suite", 0)); // Suite unavailable
 
-            System.out.print("Enter room type (Single/Double/Suite): ");
-            String roomType = sc.nextLine().trim();
+            BookingService bookingService = new BookingService(inventory);
 
-            System.out.print("Enter number of nights: ");
-            int nights = 0;
-            try {
-                nights = Integer.parseInt(sc.nextLine().trim());
-                if (nights <= 0) {
-                    System.out.println("Number of nights must be greater than zero. Request skipped.");
+            boolean continueBooking = true;
+            while (continueBooking) {
+                System.out.println("\n--- New Booking ---");
+                System.out.print("Enter guest name: ");
+                String name = sc.nextLine().trim();
+                System.out.print("Enter room type (Single/Double/Suite): ");
+                String type = sc.nextLine().trim();
+                System.out.print("Enter number of nights: ");
+                int nights = 0;
+
+                try {
+                    nights = Integer.parseInt(sc.nextLine().trim());
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid number of nights. Please enter a valid integer.");
                     continue;
                 }
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid number of nights. Request skipped.");
-                continue;
+
+                try {
+                    Reservation reservation = new Reservation(name, type, nights);
+                    bookingService.validateAndBook(reservation);
+                } catch (InvalidBookingException e) {
+                    System.out.println("Booking failed: " + e.getMessage());
+                }
+
+                bookingService.displayInventory();
+
+                System.out.print("\nDo you want to make another booking? (yes/no): ");
+                String choice = sc.nextLine().trim().toLowerCase();
+                if (!choice.equals("yes")) {
+                    continueBooking = false;
+                }
             }
 
-            Reservation reservation = new Reservation(guestName, roomType, nights);
-            bookingQueue.offer(reservation);
-
-            System.out.print("Do you want to add another booking request? (yes/no): ");
-            String choice = sc.nextLine().trim().toLowerCase();
-            if (!choice.equals("yes")) {
-                continueInput = false;
-            }
+        } catch (InvalidBookingException e) {
+            System.out.println("Error initializing system: " + e.getMessage());
+        } finally {
+            sc.close();
+            System.out.println("Booking system terminated safely.");
         }
-
-        inventory.displayInventory();
-
-        // Confirm reservations and allocate rooms
-        bookingService.confirmReservations(bookingQueue);
-
-        inventory.displayInventory();
-
-        sc.close();
-        System.out.println("\nAll reservations processed successfully.");
     }
 }
