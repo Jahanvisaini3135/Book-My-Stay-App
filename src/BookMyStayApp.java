@@ -1,77 +1,98 @@
 import java.util.*;
 
 
-class Room {
-    String type;
-    int capacity;
-    double pricePerNight;
-    List<String> amenities;
+class Reservation {
+    String guestName;
+    String roomType;
+    int nights;
 
-    public Room(String type, int capacity, double pricePerNight, List<String> amenities) {
-        this.type = type;
-        this.capacity = capacity;
-        this.pricePerNight = pricePerNight;
-        this.amenities = amenities;
+    public Reservation(String guestName, String roomType, int nights) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+        this.nights = nights;
     }
 
     @Override
     public String toString() {
-        return "Room Type: " + type + ", Capacity: " + capacity +
-                ", Price/Night: $" + pricePerNight +
-                ", Amenities: " + amenities;
+        return "Guest: " + guestName + ", Room Type: " + roomType + ", Nights: " + nights;
     }
 }
 
 
-class Inventory {
-    private Map<String, Integer> roomAvailability = new HashMap<>();
-    private Map<String, Room> roomDetails = new HashMap<>();
+class BookingRequestQueue {
+    private Queue<Reservation> requestQueue = new LinkedList<>();
 
-    public Inventory() {
 
-        roomDetails.put("Single", new Room("Single", 1, 50.0, Arrays.asList("WiFi", "TV")));
-        roomDetails.put("Double", new Room("Double", 2, 90.0, Arrays.asList("WiFi", "TV", "Mini Fridge")));
-        roomDetails.put("Suite", new Room("Suite", 4, 200.0, Arrays.asList("WiFi", "TV", "Mini Fridge", "Jacuzzi")));
-
-        roomAvailability.put("Single", 5);
-        roomAvailability.put("Double", 3);
-        roomAvailability.put("Suite", 0); // Suite currently unavailable
+    public void addRequest(Reservation reservation) {
+        requestQueue.offer(reservation);
+        System.out.println("Booking request added for " + reservation.guestName);
     }
 
 
-    public List<Room> searchAvailableRooms() {
-        List<Room> availableRooms = new ArrayList<>();
-        for (String type : roomDetails.keySet()) {
-            if (roomAvailability.getOrDefault(type, 0) > 0) {
-                availableRooms.add(roomDetails.get(type));
+    public void displayPendingRequests() {
+        if (requestQueue.isEmpty()) {
+            System.out.println("No booking requests in the queue.");
+        } else {
+            System.out.println("\n--- Pending Booking Requests ---");
+            for (Reservation r : requestQueue) {
+                System.out.println(r);
             }
         }
-        return availableRooms;
+    }
+
+
+    public Reservation processNextRequest() {
+        return requestQueue.poll();
+    }
+
+    public boolean isEmpty() {
+        return requestQueue.isEmpty();
     }
 }
+
 
 public class BookMyStayApp {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        Inventory inventory = new Inventory();
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
 
-        System.out.println("Welcome to Book My Stay - Room Search");
-        System.out.print("Do you want to view available rooms? (yes/no): ");
-        String input = sc.nextLine().trim().toLowerCase();
+        System.out.println("Welcome to Book My Stay - Booking Request Queue");
+        boolean continueInput = true;
 
-        if (input.equals("yes")) {
-            List<Room> availableRooms = inventory.searchAvailableRooms();
+        while (continueInput) {
+            System.out.print("\nEnter guest name: ");
+            String guestName = sc.nextLine().trim();
 
-            if (availableRooms.isEmpty()) {
-                System.out.println("Sorry, no rooms are currently available.");
-            } else {
-                System.out.println("\n--- Available Rooms ---");
-                availableRooms.forEach(System.out::println);
+            System.out.print("Enter room type (Single/Double/Suite): ");
+            String roomType = sc.nextLine().trim();
+
+            System.out.print("Enter number of nights: ");
+            int nights = 0;
+            try {
+                nights = Integer.parseInt(sc.nextLine().trim());
+                if (nights <= 0) {
+                    System.out.println("Number of nights must be greater than zero. Request skipped.");
+                    continue;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number of nights. Request skipped.");
+                continue;
             }
-        } else {
-            System.out.println("Search cancelled. Thank you!");
+
+            Reservation reservation = new Reservation(guestName, roomType, nights);
+            bookingQueue.addRequest(reservation);
+
+            System.out.print("Do you want to add another booking request? (yes/no): ");
+            String choice = sc.nextLine().trim().toLowerCase();
+            if (!choice.equals("yes")) {
+                continueInput = false;
+            }
         }
 
+
+        bookingQueue.displayPendingRequests();
+
         sc.close();
+        System.out.println("\nAll booking requests are queued for allocation.");
     }
 }
